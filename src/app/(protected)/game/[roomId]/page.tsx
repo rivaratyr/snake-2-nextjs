@@ -1,9 +1,9 @@
 // app/game/[roomId]/page.tsx
 'use client';
 
-import { useEffect, useRef, useState, KeyboardEvent, TouchEvent } from 'react';
+import { useEffect, useRef, useState, TouchEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getSocket } from '../../../utils/socket';
+import { getSocket } from '@/utils/socket';
 
 type Direction = 'up' | 'down' | 'left' | 'right';
 
@@ -74,7 +74,7 @@ export default function GamePage() {
 
     // 2) Capture our socket ID
     socket.on('connect', () => {
-      setMyId(socket.id);
+      setMyId(socket.id ?? '');
     });
 
     // 3) Handle “room:ready” from server
@@ -213,7 +213,7 @@ export default function GamePage() {
 
   // Keyboard arrow keys for desktop
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
+    const handler = (e: globalThis.KeyboardEvent) => {
       switch (e.key) {
         case 'ArrowUp':
           changeDirection('up');

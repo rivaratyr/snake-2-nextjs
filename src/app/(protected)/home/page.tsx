@@ -1,4 +1,4 @@
-import LobbyPage from '@/app/lobby/page';
+import LobbyPage from '@/app/(protected)/lobby/page';
 import { auth } from '@/auth';
 import { Page } from '@/components/PageLayout';
 import { Pay } from '@/components/Pay';

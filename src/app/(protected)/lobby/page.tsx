@@ -9,7 +9,7 @@ import {
   KeyboardEvent,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSocket } from '../../utils/socket';
+import { getSocket } from '@/utils/socket';
 
 interface ChatMessage {
   username: string;
