@@ -2,11 +2,40 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { Server } from 'socket.io';
 
-// In‐memory storage:
-const userNames: Record<string, string> = {};               // socketId → username
-const rooms: Record<string, { players: Set<string> }> = {}; // roomId → set of socket IDs
+/**
+ * In‐memory storage:
+ * - userNames maps socketId → username.
+ * - rooms maps roomId → a Set of socket IDs that have joined.
+ */
+const userNames: Record<string, string> = {};
+const rooms: Record<string, { players: Set<string> }> = {};
 
-// Helper to return an array of rooms with counts
+// Per‐room game data:
+interface Cell { x: number; y: number; }
+type Direction = 'up' | 'down' | 'left' | 'right';
+
+interface SnakeState {
+  body: Cell[];
+  direction: Direction;
+  alive: boolean;
+  score: number; // How many foods this snake has eaten
+}
+
+interface GameData {
+  snakes: Record<string, SnakeState>; // socketId → SnakeState
+  food: Cell;
+  status: 'waiting' | 'playing' | 'finished';
+  startTimeout?: NodeJS.Timeout;  // Timeout for 3s countdown
+  intervalId?: NodeJS.Timeout;    // Interval for game ticks
+}
+
+const gameDataByRoom: Record<string, GameData> = {}; // roomId → GameData
+
+// Grid dimensions for the snake game
+const GRID_COLS = 20;
+const GRID_ROWS = 20;
+
+/** Returns a list of rooms with their current player counts */
 function getRoomsArray() {
   return Object.entries(rooms).map(([roomId, room]) => ({
     roomId,
@@ -14,15 +43,28 @@ function getRoomsArray() {
   }));
 }
 
+/** Place food at a random empty cell (no overlap with any snake segment) */
+function placeFood(game: GameData) {
+  let fx: number, fy: number, collision: boolean;
+  do {
+    fx = Math.floor(Math.random() * GRID_COLS);
+    fy = Math.floor(Math.random() * GRID_ROWS);
+    collision = Object.values(game.snakes).some((sd) =>
+      sd.body.some((seg) => seg.x === fx && seg.y === fy)
+    );
+  } while (collision);
+  game.food = { x: fx, y: fy };
+}
+
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Only initialize once
-  if (res.socket && !res.socket.server.io) {
+  // Only create one Socket.IO server instance
+  if (!res.socket.server.io) {
     console.log('⌛️ Initializing Socket.IO server…');
     const httpServer: any = res.socket.server;
     const io = new Server(httpServer, {
-      path: '/api/socket_io', // Must match client
+      path: '/api/socket_io',
       cors: {
-        origin: '*', // For development; tighten in production
+        origin: '*',
         methods: ['GET', 'POST'],
       },
     });
@@ -31,10 +73,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     io.on('connection', (socket) => {
       console.log(`⚡️ Socket connected: ${socket.id}`);
 
-      // 0) Immediately send current room list
+      // 0) Send the current room list immediately
       socket.emit('lobby:roomList', getRoomsArray());
 
-      // 1) When a client sets their username
+      // ============================
+      // LOBBY / ROOM HANDLERS
+      // ============================
+
+      // 1) Set Username
       socket.on('lobby:setUsername', (username: string) => {
         const nameToStore = username?.trim() || 'Anonymous';
         userNames[socket.id] = nameToStore;
@@ -42,7 +88,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         io.emit('lobby:userList', Object.values(userNames));
       });
 
-      // 2) When a client sends a chat message
+      // 2) Chat Message
       socket.on('lobby:chat', (msg: string) => {
         const username = userNames[socket.id] || 'Anonymous';
         console.log(`💬 [${username}]: ${msg}`);
@@ -53,7 +99,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         });
       });
 
-      // 3) When a client creates a new room
+      // 3) Create a New Room
       socket.on('lobby:createRoom', () => {
         const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
         rooms[roomId] = { players: new Set() };
@@ -61,7 +107,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         io.emit('lobby:roomList', getRoomsArray());
       });
 
-      // 4) When a client attempts to join a room
+      // 4) Join Room
       socket.on('lobby:joinRoom', ({ roomId }: { roomId: string }) => {
         const room = rooms[roomId];
         if (!room) {
@@ -69,42 +115,261 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
           return;
         }
 
-        // If this same socket is already in the room, we do NOT treat it as "full";
-        // we simply re‐emit "roomJoined" (and "room:ready" if it's already 2/2) and return.
+        // If this socket is already in the room (e.g. client reconnected),
+        // re‐emit appropriate events and return early
         if (room.players.has(socket.id)) {
           socket.emit('lobby:roomJoined', { roomId });
-          if (room.players.size === 2) {
-            io.to(roomId).emit('room:ready', { roomId });
+          const game = gameDataByRoom[roomId];
+          if (game) {
+            if (game.status === 'waiting') {
+              // The original 'room:ready' might have been missed, re-send it:
+              socket.emit('room:ready', { roomId });
+            } else if (game.status === 'playing') {
+              // If game is already in progress, send current state immediately
+              socket.emit('game:state', {
+                snakes: game.snakes,
+                food: game.food,
+              });
+            }
           }
           return;
         }
 
-        // Now if socket was NOT already in the set, check fullness:
+        // If the room already has two players, reject
         if (room.players.size >= 2) {
           socket.emit('lobby:roomError', `Room "${roomId}" is already full.`);
           return;
         }
 
-        // OK to add them
+        // Add this socket to the room
         room.players.add(socket.id);
         socket.join(roomId);
         console.log(
           `🔑 User "${userNames[socket.id] || socket.id}" joined room ${roomId}`
         );
 
-        // Broadcast updated room list to everyone
+        // Broadcast updated room list to all clients
         io.emit('lobby:roomList', getRoomsArray());
 
-        // Inform this socket that join succeeded
+        // Notify this client that they successfully joined
         socket.emit('lobby:roomJoined', { roomId });
 
-        // If now exactly 2 players are in the room, broadcast "room:ready"
+        // If now exactly two players, start countdown and schedule game
         if (room.players.size === 2) {
+          // 4.1) Notify both players to start their 3→2→1 countdown
           io.to(roomId).emit('room:ready', { roomId });
+
+          // 4.2) Initialize game data for this room (status='waiting')
+          const [playerA, playerB] = Array.from(room.players);
+          const newGame: GameData = {
+            status: 'waiting',
+            snakes: {
+              [playerA]: {
+                body: [{ x: 2, y: 2 }], // top-left corner
+                direction: 'right',
+                alive: true,
+                score: 0,
+              },
+              [playerB]: {
+                body: [{ x: GRID_COLS - 3, y: GRID_ROWS - 3 }], // bottom-right
+                direction: 'left',
+                alive: true,
+                score: 0,
+              },
+            },
+            food: { x: 0, y: 0 },
+          };
+          placeFood(newGame);
+          gameDataByRoom[roomId] = newGame;
+
+          // 4.3) After 3 seconds (countdown), start the server‐authoritative game loop
+          newGame.startTimeout = setTimeout(() => {
+            const game = gameDataByRoom[roomId];
+            if (!game || game.status !== 'waiting') return;
+            game.status = 'playing';
+            console.log(`🚦 Starting game loop for room ${roomId}`);
+
+            // Tick every 200ms (half speed)
+            const TICK_RATE = 200;
+            game.intervalId = setInterval(() => {
+              const currentGame = gameDataByRoom[roomId];
+              if (!currentGame || currentGame.status !== 'playing') return;
+
+              // Move each snake one step
+              Object.entries(currentGame.snakes).forEach(([pid, snake]) => {
+                if (!snake.alive) return;
+                const head = { ...snake.body[0] };
+                switch (snake.direction) {
+                  case 'up':
+                    head.y -= 1;
+                    break;
+                  case 'down':
+                    head.y += 1;
+                    break;
+                  case 'left':
+                    head.x -= 1;
+                    break;
+                  case 'right':
+                    head.x += 1;
+                    break;
+                }
+
+                // Border collision (no wrap). Hitting the wall kills the snake.
+                if (
+                  head.x < 0 ||
+                  head.x >= GRID_COLS ||
+                  head.y < 0 ||
+                  head.y >= GRID_ROWS
+                ) {
+                  snake.alive = false;
+                  return;
+                }
+
+                // Add new head
+                snake.body.unshift(head);
+
+                // Check if we ate food
+                if (
+                  head.x === currentGame.food.x &&
+                  head.y === currentGame.food.y
+                ) {
+                  snake.score += 1;
+                  // Grow (do NOT pop tail) and place new food
+                  placeFood(currentGame);
+                } else {
+                  // Regular move: remove tail segment
+                  snake.body.pop();
+                }
+              });
+
+              // Collision checks: self and other
+              const entries = Object.entries(currentGame.snakes);
+              entries.forEach(([pid, snake]) => {
+                if (!snake.alive) return;
+                const head = snake.body[0];
+                // Self‐collision
+                for (let i = 1; i < snake.body.length; i++) {
+                  if (
+                    snake.body[i].x === head.x &&
+                    snake.body[i].y === head.y
+                  ) {
+                    snake.alive = false;
+                    break;
+                  }
+                }
+                // Collision with other snake’s body
+                entries.forEach(([otherId, otherSnake]) => {
+                  if (otherId === pid) return;
+                  otherSnake.body.forEach((seg) => {
+                    if (seg.x === head.x && seg.y === head.y) {
+                      snake.alive = false;
+                    }
+                  });
+                });
+              });
+
+              // Check if game is over (0 or 1 alive)
+              const alivePlayers = Object.entries(currentGame.snakes).filter(
+                ([, s]) => s.alive
+              );
+              if (alivePlayers.length <= 0) {
+                // Draw
+                clearInterval(currentGame.intervalId!);
+                currentGame.status = 'finished';
+                io.to(roomId).emit('game:over', { result: 'draw' });
+                return;
+              } else if (alivePlayers.length === 1) {
+                const winnerId = alivePlayers[0][0];
+                clearInterval(currentGame.intervalId!);
+                currentGame.status = 'finished';
+                io.to(roomId).emit('game:over', { winnerId });
+                return;
+              }
+
+              // Broadcast the updated state to both clients
+              io.to(roomId).emit('game:state', {
+                snakes: currentGame.snakes,
+                food: currentGame.food,
+              });
+            }, TICK_RATE);
+          }, 3000);
         }
       });
 
-      // 5) Handle client disconnection
+      // ============================
+      // MANUAL “LEAVE ROOM” HANDLER
+      // ============================
+      socket.on('lobby:leaveRoom', ({ roomId }: { roomId: string }) => {
+        const room = rooms[roomId];
+        if (!room) return;
+
+        if (room.players.has(socket.id)) {
+          room.players.delete(socket.id);
+          socket.leave(roomId);
+          console.log(
+            `🚪 User "${
+              userNames[socket.id] || socket.id
+            }" left room ${roomId}`
+          );
+
+          // If a game was waiting or running, cancel it
+          const game = gameDataByRoom[roomId];
+          if (game) {
+            if (game.startTimeout) {
+              clearTimeout(game.startTimeout);
+            }
+            if (game.status === 'playing' && game.intervalId) {
+              clearInterval(game.intervalId);
+              game.status = 'finished';
+              // Notify the remaining player they win by default
+              const [remaining] = Array.from(room.players);
+              if (remaining) {
+                io.to(roomId).emit('game:over', { winnerId: remaining });
+              }
+            }
+            delete gameDataByRoom[roomId];
+          }
+
+          // If the room is now empty, delete it
+          if (room.players.size === 0) {
+            delete rooms[roomId];
+            console.log(`❌ Room ${roomId} destroyed (empty after leaveRoom)`);
+          }
+
+          // Broadcast updated room list
+          io.emit('lobby:roomList', getRoomsArray());
+        }
+      });
+
+      // ============================
+      // GAME‐SPECIFIC HANDLERS
+      // ============================
+      socket.on(
+        'game:changeDirection',
+        ({
+          roomId,
+          newDirection,
+        }: { roomId: string; newDirection: Direction }) => {
+          const game = gameDataByRoom[roomId];
+          if (!game || game.status !== 'playing') return;
+          const snake = game.snakes[socket.id];
+          if (!snake || !snake.alive) return;
+          // Prevent 180° reversal
+          const opposite: Record<Direction, Direction> = {
+            up: 'down',
+            down: 'up',
+            left: 'right',
+            right: 'left',
+          };
+          if (newDirection !== opposite[snake.direction]) {
+            snake.direction = newDirection;
+          }
+        }
+      );
+
+      // ============================
+      // HANDLE CLIENT DISCONNECT
+      // ============================
       socket.on('disconnect', () => {
         const name = userNames[socket.id] || 'Anonymous';
         console.log(`🔌 User "${name}" disconnected (socket.id = ${socket.id})`);
@@ -114,17 +379,36 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         Object.entries(rooms).forEach(([roomId, roomData]) => {
           if (roomData.players.has(socket.id)) {
             roomData.players.delete(socket.id);
-            console.log(`↪️ Removed ${name} from room ${roomId}`);
-            // If it’s now empty, delete it entirely
+            console.log(`↪️ Removed ${name} from room ${roomId} (disconnect)`);
+
+            // If a game was in progress, end it:
+            const game = gameDataByRoom[roomId];
+            if (game) {
+              if (game.startTimeout) {
+                clearTimeout(game.startTimeout);
+              }
+              if (game.status === 'playing' && game.intervalId) {
+                clearInterval(game.intervalId);
+                game.status = 'finished';
+                // Remaining player (if any) wins
+                const [remaining] = Array.from(roomData.players);
+                if (remaining) {
+                  io.to(roomId).emit('game:over', { winnerId: remaining });
+                }
+              }
+              delete gameDataByRoom[roomId];
+            }
+
+            // Remove empty room
             if (roomData.players.size === 0) {
               delete rooms[roomId];
               console.log(`❌ Room ${roomId} deleted (empty)`);
             }
+
             roomsChanged = true;
           }
         });
 
-        // Broadcast updated user list & room list
         io.emit('lobby:userList', Object.values(userNames));
         if (roomsChanged) {
           io.emit('lobby:roomList', getRoomsArray());
@@ -135,6 +419,5 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     console.log('✅ Socket.IO server initialized.');
   }
 
-  // Always return 200. Clients connect over WS, not via normal fetch.
   res.status(200).end();
 }

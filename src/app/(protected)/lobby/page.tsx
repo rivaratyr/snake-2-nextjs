@@ -1,3 +1,4 @@
+// app/lobby/page.tsx
 'use client';
 
 import {
@@ -8,7 +9,7 @@ import {
   KeyboardEvent,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSocket } from '@/utils/socket'; // adjust path if needed
+import { getSocket } from '../../utils/socket';
 
 interface ChatMessage {
   username: string;
@@ -23,18 +24,19 @@ interface RoomInfo {
 
 export default function LobbyPage() {
   const router = useRouter();
+  const socket = getSocket();
 
-  // User + chat state
+  // ——— Persisted username logic ———
   const [username, setUsername] = useState<string>('');
   const [hasJoined, setHasJoined] = useState<boolean>(false);
+
+  // ——— Chat & room state ———
   const [connectedUsers, setConnectedUsers] = useState<string[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState<string>('');
-
-  // Room state
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
 
-  // Refs (to keep handlers updated)
+  // Refs (not strictly needed for this example)
   const connectedUsersRef = useRef<string[]>(connectedUsers);
   const messagesRef = useRef<ChatMessage[]>(messages);
   const roomsRef = useRef<RoomInfo[]>(rooms);
@@ -42,16 +44,25 @@ export default function LobbyPage() {
   messagesRef.current = messages;
   roomsRef.current = rooms;
 
-  // Initialize Socket.IO and register listeners (once)
-    useEffect(() => {
-    const socket = getSocket();
+  // ——— On mount: check localStorage for “username” ———
+  useEffect(() => {
+    const stored = localStorage.getItem('snakeLobbyUsername');
+    if (stored) {
+      setUsername(stored);
+      setHasJoined(true);
+      // Immediately inform server of our username
+      socket.emit('lobby:setUsername', stored);
+    }
+  }, [socket]);
 
+  // ——— Socket.IO event handlers (once) ———
+  useEffect(() => {
     // 1) Receive updated user list
     socket.on('lobby:userList', (list: string[]) => {
       setConnectedUsers(list);
     });
 
-    // 2) Receive new chat messages
+    // 2) Receive chat messages
     socket.on('lobby:newMessage', (msg: ChatMessage) => {
       setMessages((prev) => [...prev, msg]);
     });
@@ -66,7 +77,7 @@ export default function LobbyPage() {
       alert(errMsg);
     });
 
-    // 5) When this client successfully joins a room, navigate
+    // 5) When a room is joined, navigate to the game page
     socket.on('lobby:roomJoined', ({ roomId }: { roomId: string }) => {
       router.push(`/game/${roomId}`);
     });
@@ -78,19 +89,23 @@ export default function LobbyPage() {
       socket.off('lobby:roomError');
       socket.off('lobby:roomJoined');
     };
-  }, [router]);
+  }, [router, socket]);
 
+  // ——— Handle “Join Lobby” (store username + emit) ———
   const handleJoin = (e: FormEvent) => {
     e.preventDefault();
     if (!username.trim()) return;
-    const socket = getSocket();
-    socket.emit('lobby:setUsername', username.trim());
+    const trimmed = username.trim();
+    // Save to localStorage
+    localStorage.setItem('snakeLobbyUsername', trimmed);
+    // Tell server
+    socket.emit('lobby:setUsername', trimmed);
     setHasJoined(true);
   };
 
+  // ——— Send chat ———
   const sendMessage = () => {
     if (!chatInput.trim()) return;
-    const socket = getSocket();
     socket.emit('lobby:chat', chatInput.trim());
     setChatInput('');
   };
@@ -102,18 +117,17 @@ export default function LobbyPage() {
     }
   };
 
+  // ——— Create & join rooms ———
   const createRoom = () => {
-    const socket = getSocket();
     socket.emit('lobby:createRoom');
   };
 
   const joinRoom = (roomId: string) => {
-    const socket = getSocket();
     socket.emit('lobby:joinRoom', { roomId });
-    // navigation will happen in 'lobby:roomJoined'
+    // The actual navigation happens in the 'lobby:roomJoined' listener
   };
-  
-  // If user hasn’t joined (entered username) yet:
+
+  // ——— If not joined (no username), show login form ———
   if (!hasJoined) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
@@ -142,7 +156,7 @@ export default function LobbyPage() {
     );
   }
 
-  // Once joined, show lobby + chat + rooms
+  // ——— Once joined, show chat + rooms ———
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
