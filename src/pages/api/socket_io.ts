@@ -190,7 +190,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             console.log(`🚦 Starting game loop for room ${roomId}`);
 
             // Tick every 200ms (half speed)
-            const TICK_RATE = 200;
+            const TICK_RATE = 300;
             game.intervalId = setInterval(() => {
               const currentGame = gameDataByRoom[roomId];
               if (!currentGame || currentGame.status !== 'playing') return;

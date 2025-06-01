@@ -1,4 +1,4 @@
-// app/lobby/page.tsx
+// src/app/(protected)/lobby/page.tsx
 'use client';
 
 import {
@@ -36,7 +36,7 @@ export default function LobbyPage() {
   const [chatInput, setChatInput] = useState<string>('');
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
 
-  // Refs (not strictly needed for this example)
+  // Refs (not strictly needed but kept in case you want scroll locking, etc.)
   const connectedUsersRef = useRef<string[]>(connectedUsers);
   const messagesRef = useRef<ChatMessage[]>(messages);
   const roomsRef = useRef<RoomInfo[]>(rooms);
@@ -55,7 +55,7 @@ export default function LobbyPage() {
     }
   }, [socket]);
 
-  // ——— Socket.IO event handlers (once) ———
+  // ——— Socket.IO event handlers ———
   useEffect(() => {
     // 1) Receive updated user list
     socket.on('lobby:userList', (list: string[]) => {
@@ -124,7 +124,7 @@ export default function LobbyPage() {
 
   const joinRoom = (roomId: string) => {
     socket.emit('lobby:joinRoom', { roomId });
-    // The actual navigation happens in the 'lobby:roomJoined' listener
+    // Actual navigation happens via 'lobby:roomJoined'
   };
 
   // ——— If not joined (no username), show login form ———
@@ -133,7 +133,7 @@ export default function LobbyPage() {
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <form
           onSubmit={handleJoin}
-          className="bg-white p-6 rounded shadow-md w-80"
+          className="bg-white p-6 rounded-lg shadow-lg w-11/12 max-w-sm"
         >
           <h2 className="text-2xl font-bold mb-4 text-center">
             Enter Your Name
@@ -156,112 +156,102 @@ export default function LobbyPage() {
     );
   }
 
-  // ——— Once joined, show chat + rooms ———
+  // ——— Once joined, show three stacked cards: Users, Rooms, Chat ———
   return (
-    <div className="h-screen flex flex-col">
-      {/* Header */}
-      <div className="bg-blue-600 text-white px-4 py-3 flex justify-between items-center">
-        <h1 className="text-lg font-semibold">Lobby Chat</h1>
-        <div>
-          <span className="mr-2">Logged in as:</span>
-          <span className="font-bold">{username}</span>
-        </div>
+    <div className="min-h-screen bg-gray-100 p-4 space-y-4">
+      {/* Card #1: Connected Users */}
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <h2 className="text-lg font-semibold mb-2">Users ({connectedUsers.length})</h2>
+        <ul className="space-y-1 max-h-36 overflow-y-auto">
+          {connectedUsers.map((u, idx) => (
+            <li key={idx} className="text-black">
+              {u}
+            </li>
+          ))}
+          {connectedUsers.length === 0 && (
+            <li className="text-gray-500 italic">No users online.</li>
+          )}
+        </ul>
       </div>
 
-      {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Column: Users & Rooms */}
-        <div className="w-1/4 bg-gray-100 border-r border-gray-300 p-2 overflow-auto">
-          {/* -- Users List -- */}
-          <h2 className="text-md font-semibold mb-2">
-            Users ({connectedUsers.length}):
-          </h2>
-          <ul>
-            {connectedUsers.map((u, idx) => (
-              <li key={idx} className="mb-1 text-black">
-                {u}
-              </li>
-            ))}
-          </ul>
-
-          <div className="my-4 border-t border-gray-300"></div>
-
-          {/* -- Create Game Button -- */}
+      {/* Card #2: Rooms */}
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-semibold">Rooms ({rooms.length})</h2>
           <button
             onClick={createRoom}
-            className="w-full bg-green-500 text-white py-2 mb-4 rounded hover:bg-green-600 transition"
+            className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition text-sm"
           >
-            Create Game
+            + Create
           </button>
-
-          {/* -- Rooms List -- */}
-          <h2 className="text-md font-semibold mb-2">
-            Rooms ({rooms.length}):
-          </h2>
-          {rooms.length === 0 ? (
-            <p className="text-gray-500">No rooms yet.</p>
-          ) : (
-            <ul>
-              {rooms.map((r) => (
-                <li
-                  key={r.roomId}
-                  className="flex items-center justify-between bg-white p-2 mb-2 rounded shadow"
-                >
-                  <span className="font-semibold text-black">{r.roomId}</span>
-                  <span className="text-black">{r.playersCount}/2</span>
-                  {r.playersCount < 2 ? (
-                    <button
-                      onClick={() => joinRoom(r.roomId)}
-                      className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition text-sm"
-                    >
-                      Join
-                    </button>
-                  ) : (
-                    <span className="text-gray-500 italic text-sm">Full</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
-
-        {/* Right Column: Chat Window */}
-        <div className="flex-1 flex flex-col">
-          {/* Messages */}
-          <div
-            className="flex-1 p-3 overflow-y-auto space-y-2 bg-white"
-            id="chat-window"
-          >
-            {messages.map((m, idx) => (
-              <div key={idx} className="flex flex-col">
-                <div className="flex space-x-2">
-                  <span className="font-semibold text-black">{m.username}</span>
-                  <span className="text-xs text-black">
-                    {new Date(m.timestamp).toLocaleTimeString()}
-                  </span>
-                </div>
-                <div className="text-md text-black">{m.text}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Input Box */}
-          <div className="p-2 border-t border-gray-300 flex">
-            <input
-              type="text"
-              placeholder="Type a message..."
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={handleChatKeyDown}
-              className="flex-1 border border-gray-300 rounded-l px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-            <button
-              onClick={sendMessage}
-              className="bg-blue-500 text-white px-4 py-2 rounded-r hover:bg-blue-600 transition"
+        <ul className="space-y-2">
+          {rooms.length === 0 && (
+            <li className="text-gray-500 italic">No rooms available.</li>
+          )}
+          {rooms.map((r) => (
+            <li
+              key={r.roomId}
+              className="flex items-center justify-between bg-gray-50 p-2 rounded"
             >
-              Send
-            </button>
-          </div>
+              <div>
+                <span className="font-semibold text-black">{r.roomId}</span>
+                <span className="text-sm text-gray-600 ml-2">
+                  ({r.playersCount}/2)
+                </span>
+              </div>
+              {r.playersCount < 2 ? (
+                <button
+                  onClick={() => joinRoom(r.roomId)}
+                  className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition text-sm"
+                >
+                  Join
+                </button>
+              ) : (
+                <span className="text-gray-500 italic text-sm">Full</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Card #3: Chat */}
+      <div className="bg-white rounded-lg shadow-md p-4 flex flex-col">
+        <h2 className="text-lg font-semibold mb-2">Chat</h2>
+        <div
+          className="flex-1 overflow-y-auto border border-gray-200 rounded p-2 mb-2 max-h-48"
+          id="chat-window"
+        >
+          {messages.length === 0 && (
+            <p className="text-gray-500 italic">No messages yet.</p>
+          )}
+          {messages.map((m, idx) => (
+            <div key={idx} className="mb-2">
+              <div className="flex space-x-1">
+                <span className="font-semibold text-black">{m.username}:</span>
+                <span className="text-xs text-gray-600">
+                  {new Date(m.timestamp).toLocaleTimeString()}
+                </span>
+              </div>
+              <p className="text-black">{m.text}</p>
+            </div>
+          ))}
+        </div>
+        <div className="flex">
+          <input
+            type="text"
+            placeholder="Type a message..."
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            onKeyDown={handleChatKeyDown}
+            className="flex-1 border border-gray-300 rounded-l px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <button
+            onClick={sendMessage}
+            className="bg-blue-500 text-white px-4 py-2 rounded-r hover:bg-blue-600 transition"
+          >
+            Send
+          </button>
         </div>
       </div>
     </div>
