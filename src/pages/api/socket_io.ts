@@ -1,6 +1,7 @@
 // pages/api/socket_io.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { Server } from 'socket.io';
+import { Server as HttpServer } from 'http';
 
 /**
  * In‐memory storage:
@@ -27,6 +28,7 @@ interface GameData {
   status: 'waiting' | 'playing' | 'finished';
   startTimeout?: NodeJS.Timeout;  // Timeout for 3s countdown
   intervalId?: NodeJS.Timeout;    // Interval for game ticks
+  readyPlayers: Set<string>;      // Track which players pressed "Start"
 }
 
 const gameDataByRoom: Record<string, GameData> = {}; // roomId → GameData
@@ -58,9 +60,14 @@ function placeFood(game: GameData) {
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   // Only create one Socket.IO server instance
-  if (!res.socket.server.io) {
+  if (res.socket && !(res.socket as unknown as { server: { io?: Server } }).server.io) {
     console.log('⌛️ Initializing Socket.IO server…');
-    const httpServer: any = res.socket.server;
+    if (!res.socket) {
+      res.status(500).send('Socket is not available.');
+      return;
+    }
+    
+    const httpServer: HttpServer = ((res.socket as unknown) as { server: HttpServer }).server;
     const io = new Server(httpServer, {
       path: '/api/socket_io',
       cors: {
@@ -68,7 +75,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         methods: ['GET', 'POST'],
       },
     });
-    res.socket.server.io = io;
+    (res.socket as unknown as { server: HttpServer & { io?: Server } }).server.io = io;
 
     io.on('connection', (socket) => {
       console.log(`⚡️ Socket connected: ${socket.id}`);
@@ -122,8 +129,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
           const game = gameDataByRoom[roomId];
           if (game) {
             if (game.status === 'waiting') {
-              // The original 'room:ready' might have been missed, re-send it:
-              socket.emit('room:ready', { roomId });
+              // The original 'room:showReady' might have been missed, re-send it:
+              socket.emit('room:showReady', { roomId });
             } else if (game.status === 'playing') {
               // If game is already in progress, send current state immediately
               socket.emit('game:state', {
@@ -154,12 +161,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         // Notify this client that they successfully joined
         socket.emit('lobby:roomJoined', { roomId });
 
-        // If now exactly two players, start countdown and schedule game
+        // If now exactly two players, initialize game data for this room (status='waiting')
         if (room.players.size === 2) {
-          // 4.1) Notify both players to start their 3→2→1 countdown
-          io.to(roomId).emit('room:ready', { roomId });
-
-          // 4.2) Initialize game data for this room (status='waiting')
           const [playerA, playerB] = Array.from(room.players);
           const newGame: GameData = {
             status: 'waiting',
@@ -178,25 +181,133 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
               },
             },
             food: { x: 0, y: 0 },
+            readyPlayers: new Set(),
           };
           placeFood(newGame);
           gameDataByRoom[roomId] = newGame;
 
-          // 4.3) After 3 seconds (countdown), start the server‐authoritative game loop
-          newGame.startTimeout = setTimeout(() => {
+          // Notify both players to show the "Ready" popup (client will show modal)
+          io.to(roomId).emit('room:showReady', { roomId });
+        }
+      });
+
+      // ============================
+      // MANUAL “LEAVE ROOM” HANDLER
+      // ============================
+      socket.on('lobby:leaveRoom', ({ roomId }: { roomId: string }) => {
+        const room = rooms[roomId];
+        if (!room) return;
+
+        if (room.players.has(socket.id)) {
+          room.players.delete(socket.id);
+          socket.leave(roomId);
+          console.log(
+            `🚪 User "${
+              userNames[socket.id] || socket.id
+            }" left room ${roomId}`
+          );
+
+          // If a game was waiting or running, cancel it
+          const game = gameDataByRoom[roomId];
+          if (game) {
+            if (game.startTimeout) {
+              clearTimeout(game.startTimeout);
+            }
+            if (game.status === 'playing' && game.intervalId) {
+              clearInterval(game.intervalId);
+              game.status = 'finished';
+              // Notify the remaining player they win by default
+              const [remaining] = Array.from(room.players);
+              if (remaining) {
+                io.to(roomId).emit('game:over', { winnerId: remaining });
+              }
+            }
+            delete gameDataByRoom[roomId];
+          }
+
+          // If the room is now empty, delete it
+          if (room.players.size === 0) {
+            delete rooms[roomId];
+            console.log(`❌ Room ${roomId} destroyed (empty after leaveRoom)`);
+          }
+
+          // Broadcast updated room list
+          io.emit('lobby:roomList', getRoomsArray());
+        }
+      });
+
+      // ============================
+      // GAME‐SPECIFIC HANDLERS
+      // ============================
+
+      // Handle player "ready" (after pressing Start button in modal)
+      socket.on('player:ready', ({ roomId }: { roomId: string }) => {
+        const game = gameDataByRoom[roomId];
+        if (!game || game.status !== 'waiting') return;
+        game.readyPlayers.add(socket.id);
+
+        // If both players are ready, start the countdown and then the game
+        const room = rooms[roomId];
+        if (room && game.readyPlayers.size === 2) {
+          io.to(roomId).emit('room:ready', { roomId });
+
+          // Reset both snakes to starting positions and alive state using current snake keys
+          const snakeIds = Object.keys(game.snakes);
+          if (snakeIds.length === 2) {
+            const [idA, idB] = snakeIds;
+            game.snakes[idA] = {
+              body: [{ x: 2, y: 2 }],
+              direction: 'right',
+              alive: true,
+              score: 0,
+            };
+            game.snakes[idB] = {
+              body: [{ x: GRID_COLS - 3, y: GRID_ROWS - 3 }],
+              direction: 'left',
+              alive: true,
+              score: 0,
+            };
+            placeFood(game);
+          }
+          // Clear readyPlayers for next round
+          game.readyPlayers.clear();
+
+          // Start the countdown, then start the game loop
+          game.startTimeout = setTimeout(() => {
             const game = gameDataByRoom[roomId];
             if (!game || game.status !== 'waiting') return;
+
+            // Ensure both snakes are alive and in starting positions using current snake keys
+            const snakeIds = Object.keys(game.snakes);
+            if (snakeIds.length === 2) {
+              const [idA, idB] = snakeIds;
+              game.snakes[idA].alive = true;
+              game.snakes[idA].body = [{ x: 2, y: 2 }];
+              game.snakes[idA].direction = 'right';
+              game.snakes[idA].score = 0;
+              game.snakes[idB].alive = true;
+              game.snakes[idB].body = [{ x: GRID_COLS - 3, y: GRID_ROWS - 3 }];
+              game.snakes[idB].direction = 'left';
+              game.snakes[idB].score = 0;
+              placeFood(game);
+            }
+
             game.status = 'playing';
+            // Debug: log snake states before starting game loop
             console.log(`🚦 Starting game loop for room ${roomId}`);
+            console.log('Snake states at game start:', JSON.stringify(game.snakes, null, 2));
 
             // Tick every 200ms (half speed)
-            const TICK_RATE = 300;
+            const TICK_RATE = 400;
             game.intervalId = setInterval(() => {
               const currentGame = gameDataByRoom[roomId];
               if (!currentGame || currentGame.status !== 'playing') return;
 
               // Move each snake one step
               Object.entries(currentGame.snakes).forEach(([pid, snake]) => {
+
+                console.log(`🐍 Player ${pid} is moving.`);
+
                 if (!snake.alive) return;
                 const head = { ...snake.body[0] };
                 switch (snake.direction) {
@@ -296,54 +407,6 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         }
       });
 
-      // ============================
-      // MANUAL “LEAVE ROOM” HANDLER
-      // ============================
-      socket.on('lobby:leaveRoom', ({ roomId }: { roomId: string }) => {
-        const room = rooms[roomId];
-        if (!room) return;
-
-        if (room.players.has(socket.id)) {
-          room.players.delete(socket.id);
-          socket.leave(roomId);
-          console.log(
-            `🚪 User "${
-              userNames[socket.id] || socket.id
-            }" left room ${roomId}`
-          );
-
-          // If a game was waiting or running, cancel it
-          const game = gameDataByRoom[roomId];
-          if (game) {
-            if (game.startTimeout) {
-              clearTimeout(game.startTimeout);
-            }
-            if (game.status === 'playing' && game.intervalId) {
-              clearInterval(game.intervalId);
-              game.status = 'finished';
-              // Notify the remaining player they win by default
-              const [remaining] = Array.from(room.players);
-              if (remaining) {
-                io.to(roomId).emit('game:over', { winnerId: remaining });
-              }
-            }
-            delete gameDataByRoom[roomId];
-          }
-
-          // If the room is now empty, delete it
-          if (room.players.size === 0) {
-            delete rooms[roomId];
-            console.log(`❌ Room ${roomId} destroyed (empty after leaveRoom)`);
-          }
-
-          // Broadcast updated room list
-          io.emit('lobby:roomList', getRoomsArray());
-        }
-      });
-
-      // ============================
-      // GAME‐SPECIFIC HANDLERS
-      // ============================
       socket.on(
         'game:changeDirection',
         ({

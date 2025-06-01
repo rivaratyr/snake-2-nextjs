@@ -1,13 +1,10 @@
 // src/app/(protected)/game/[roomId]/page.tsx
 'use client';
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  TouchEvent,
-  useCallback,
-} from 'react';
+import { Pay } from '@/components/Pay';
+import { Button } from '@worldcoin/mini-apps-ui-kit-react';
+
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getSocket } from '@/utils/socket';
 
@@ -46,6 +43,10 @@ export default function GamePage() {
 
   // Flag once countdown hits 0
   const [gameStarted, setGameStarted] = useState(false);
+  // Show modal to start game (when both players join)
+  const [showStartModal, setShowStartModal] = useState(false);
+  // Track if this player has pressed ready
+  const [hasPressedReady, setHasPressedReady] = useState(false);
 
   // Canvas sizing
   const GRID_ROWS = 20;
@@ -65,18 +66,13 @@ export default function GamePage() {
   // Prevent 180° reversals
   const lastDirectionRef = useRef<Direction | null>(null);
 
-  // For swipe detection
-  const touchStartX = useRef<number | null>(null);
-  const touchStartY = useRef<number | null>(null);
-  const SWIPE_THRESHOLD = 20; // pixels
-
   // Refs to canvases
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   const particleCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Particle state
   const particlesRef = useRef<Particle[]>([]);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | null>(null);
 
   // --- Responsive cell size calculation ---
   useEffect(() => {
@@ -134,22 +130,33 @@ export default function GamePage() {
     };
   }, [animateParticles]);
 
-  // --- Join room & listen for countdown (“room:ready”) ---
+  // --- Join room & listen for server events ---
   useEffect(() => {
     // Immediately capture socket.id
-    setMyId(socket.id);
+    setMyId(socket.id || '');
 
     // Emit joinRoom
     socket.emit('lobby:joinRoom', { roomId });
 
     // In case the socket reconnects later, update myId again
     socket.on('connect', () => {
-      setMyId(socket.id);
+      setMyId(socket.id || '');
     });
 
-    // Handle “room:ready” from server
+    // Listen for "room:showReady" to show the ready modal
+    socket.on('room:showReady', ({ roomId: readyId }: { roomId: string }) => {
+      if (readyId === roomId) {
+        setShowStartModal(true);
+        setHasPressedReady(false);
+        setCountdown(null);
+        setGameStarted(false);
+      }
+    });
+
+    // Listen for "room:ready" to start the countdown
     socket.on('room:ready', ({ roomId: readyId }: { roomId: string }) => {
       if (readyId === roomId) {
+        setShowStartModal(false);
         setCountdown(5);
       }
     });
@@ -171,11 +178,77 @@ export default function GamePage() {
 
     return () => {
       socket.off('connect');
+      socket.off('room:showReady');
       socket.off('room:ready');
       socket.off('lobby:roomError');
       socket.off('lobby:roomList');
     };
   }, [roomId, router, socket]);
+
+  // --- Always listen for game:state and game:over ---
+  useEffect(() => {
+    // 1) game:state → update snakes + food & detect “eat”
+    const handleGameState = (payload: GameStatePayload) => {
+      // Detect if any snake head is on prevFood location → trigger particles
+      Object.values(payload.snakes).forEach((snake) => {
+        const head = snake.body[0];
+        if (
+          prevFoodRef.current.x === head.x &&
+          prevFoodRef.current.y === head.y
+        ) {
+          // Convert grid coords to pixel center
+          const px = head.x * cellSize + cellSize / 2;
+          const py = head.y * cellSize + cellSize / 2;
+          for (let i = 0; i < 20; i++) {
+            // create ~20 particles
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 2 + 1;
+            particlesRef.current.push({
+              x: px,
+              y: py,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              alpha: 1,
+              size: Math.random() * 4 + 2,
+            });
+          }
+        }
+      });
+
+      // Update prevFood, then update state
+      prevFoodRef.current = payload.food;
+      setSnakes(payload.snakes);
+      setFood(payload.food);
+    };
+
+    // 2) game:over → show result, emit leaveRoom, then redirect
+    const handleGameOver = ({
+      winnerId,
+      result,
+    }: { winnerId?: string; result?: string }) => {
+      socket.emit('lobby:leaveRoom', { roomId });
+
+      if (result === 'draw') {
+        setTimeout(() => {
+          setShowStartModal(true);
+          alert('Draw!');
+        }, 100);
+      } else if (winnerId === myId) {
+        alert('You WIN!');
+      } else {
+        alert('You LOSE.');
+      }
+      router.push('/lobby');
+    };
+
+    socket.on('game:state', handleGameState);
+    socket.on('game:over', handleGameOver);
+
+    return () => {
+      socket.off('game:state', handleGameState);
+      socket.off('game:over', handleGameOver);
+    };
+  }, [cellSize, myId, router, roomId, socket]);
 
   // --- Countdown logic (3→2→1→0) ---
   useEffect(() => {
@@ -188,62 +261,9 @@ export default function GamePage() {
       return () => clearTimeout(timer);
     }
     if (countdown === 0) {
-      // Now the countdown is done, begin listening to game state
       setGameStarted(true);
-
-      // 1) game:state → update snakes + food & detect “eat”
-      socket.on('game:state', (payload: GameStatePayload) => {
-        // Detect if any snake head is on prevFood location → trigger particles
-        Object.values(payload.snakes).forEach((snake) => {
-          const head = snake.body[0];
-          if (
-            prevFoodRef.current.x === head.x &&
-            prevFoodRef.current.y === head.y
-          ) {
-            // Convert grid coords to pixel center
-            const px = head.x * cellSize + cellSize / 2;
-            const py = head.y * cellSize + cellSize / 2;
-            for (let i = 0; i < 20; i++) {
-              // create ~20 particles
-              const angle = Math.random() * Math.PI * 2;
-              const speed = Math.random() * 2 + 1;
-              particlesRef.current.push({
-                x: px,
-                y: py,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                alpha: 1,
-                size: Math.random() * 4 + 2,
-              });
-            }
-          }
-        });
-
-        // Update prevFood, then update state
-        prevFoodRef.current = payload.food;
-        setSnakes(payload.snakes);
-        setFood(payload.food);
-      });
-
-      // 2) game:over → show result, emit leaveRoom, then redirect
-      socket.on(
-        'game:over',
-        ({ winnerId, result }: { winnerId?: string; result?: string }) => {
-          // Before redirecting, tell server we are leaving this room
-          socket.emit('lobby:leaveRoom', { roomId });
-
-          if (result === 'draw') {
-            alert('Draw!');
-          } else if (winnerId === myId) {
-            alert('You WIN!');
-          } else {
-            alert('You LOSE.');
-          }
-          router.push('/lobby');
-        }
-      );
     }
-  }, [countdown, cellSize, myId, router, roomId, socket]);
+  }, [countdown]);
 
   // --- Draw canvas & scores whenever snakes/food update ---
   const drawMainCanvas = useCallback(() => {
@@ -358,39 +378,6 @@ export default function GamePage() {
     return () => window.removeEventListener('keydown', handler);
   }, [roomId, socket]);
 
-  // --- Touch handlers for swipe on mobile ---
-  const onTouchStart = (e: TouchEvent) => {
-    if (e.touches.length !== 1) return;
-    const touch = e.touches[0];
-    touchStartX.current = touch.clientX;
-    touchStartY.current = touch.clientY;
-  };
-
-  const onTouchEnd = (e: TouchEvent) => {
-    if (touchStartX.current === null || touchStartY.current === null) return;
-    const touch = e.changedTouches[0];
-    const dx = touch.clientX - touchStartX.current;
-    const dy = touch.clientY - touchStartY.current;
-    touchStartX.current = null;
-    touchStartY.current = null;
-
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_THRESHOLD) {
-      // Horizontal swipe
-      if (dx > 0) {
-        changeDirection('right');
-      } else {
-        changeDirection('left');
-      }
-    } else if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > SWIPE_THRESHOLD) {
-      // Vertical swipe
-      if (dy > 0) {
-        changeDirection('down');
-      } else {
-        changeDirection('up');
-      }
-    }
-  };
-
   // --- Render ---
   return (
     <div className="h-screen flex flex-col items-center justify-center bg-gray-100">
@@ -426,32 +413,64 @@ export default function GamePage() {
         </p>
       )}
 
+      {/* Modal to start game */}
+      {showStartModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col items-center space-y-4">
+            <h2 className="text-2xl font-bold mb-4">Ready to start?</h2>
+
+            <Pay />
+            
+            <Button
+              onClick={() => {
+                if (!hasPressedReady) {
+                  socket.emit('player:ready', { roomId });
+                  setHasPressedReady(true);
+                }
+              }}
+              disabled={hasPressedReady}
+              size="lg"
+              variant="secondary"
+              className="w-full mt-4"
+            >
+              {hasPressedReady ? "Waiting for opponent..." : "I'm Ready"}
+            </Button>
+
+            {hasPressedReady && (
+              <p className="mt-4 text-gray-700">Waiting for opponent to be ready…</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* On‐screen arrow controls (shown once gameStarted = true) */}
       {gameStarted && (
         <div className="mt-6 flex flex-col items-center space-y-4 space-x-4">
+
           <button
             onClick={() => changeDirection('up')}
-            className="bg-gray-200 p-4 rounded-full shadow-lg text-2xl"
+            className="bg-gray-200 w-16 h-16 p-4 rounded-full shadow-lg text-2xl text-black text-center border-1 border-black"
           >
             ↑
           </button>
-          <div className="flex space-x-6">
+
+          <div className="flex flex-row space-x-6">
             <button
               onClick={() => changeDirection('left')}
-              className="bg-gray-200 p-4 rounded-full shadow-lg text-2xl"
+              className="bg-gray-200 w-16 h-16 p-4 rounded-full shadow-lg text-2xl text-black text-center border-1 border-black"
             >
               ←
             </button>
             <button
               onClick={() => changeDirection('right')}
-              className="bg-gray-200 p-4 rounded-full shadow-lg text-2xl"
+              className="bg-gray-200 w-16 h-16 p-4 rounded-full shadow-lg text-2x text-black text-center border-1 border-black"
             >
               →
             </button>
           </div>
           <button
             onClick={() => changeDirection('down')}
-            className="bg-gray-200 p-4 rounded-full shadow-lg text-2xl"
+            className="bg-gray-200 w-16 h-16 p-4 rounded-full shadow-lg text-2xl text-black text-center border-1 border-black"
           >
             ↓
           </button>

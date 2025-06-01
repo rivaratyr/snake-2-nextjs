@@ -1,5 +1,5 @@
 // app/page.tsx
-import { redirect } from 'next/navigation';
+//import { redirect } from 'next/navigation';
 import { Page } from '@/components/PageLayout';
 import { AuthButton } from '../components/AuthButton';
 
