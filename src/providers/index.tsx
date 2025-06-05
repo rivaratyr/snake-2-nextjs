@@ -32,11 +32,23 @@ export default function ClientProviders({
   children,
   session,
 }: ClientProvidersProps) {
+  // Log the raw env value to be sure Next.js sees it:
+  console.log('[ClientProviders] NEXT_PUBLIC_DISABLE_WORLDCOIN =', process.env.NEXT_PUBLIC_DISABLE_WORLDCOIN);
+
+  // Read the debug flag—if it’s "true", we skip the Worldcoin/MiniKit provider
+  const disableWC = process.env.NEXT_PUBLIC_DISABLE_WORLDCOIN === 'true';
+
   return (
     <ErudaProvider>
-      <MiniKitProvider>
+      {disableWC ? (
+        // If disabled, skip MiniKit and only wrap with SessionProvider
         <SessionProvider session={session}>{children}</SessionProvider>
-      </MiniKitProvider>
+      ) : (
+        // Otherwise, use the normal Worldcoin MiniKitProvider → SessionProvider → children
+        <MiniKitProvider>
+          <SessionProvider session={session}>{children}</SessionProvider>
+        </MiniKitProvider>
+      )}
     </ErudaProvider>
   );
 }

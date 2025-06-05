@@ -1,22 +1,36 @@
 'use client';
+
 import { walletAuth } from '@/auth/wallet';
 import { Button, LiveFeedback } from '@worldcoin/mini-apps-ui-kit-react';
 import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 /**
- * This component is an example of how to authenticate a user
- * We will use Next Auth for this example, but you can use any auth provider
- * Read More: https://docs.world.org/mini-apps/commands/wallet-auth
+ * This component is an example of how to authenticate a user.
+ * When NEXT_PUBLIC_DISABLE_WORLDCOIN=true, clicking the button routes you
+ * directly to /lobby (skipping walletAuth).
  */
 export const AuthButton = () => {
+  console.log('[AuthButton] NEXT_PUBLIC_DISABLE_WORLDCOIN =', process.env.NEXT_PUBLIC_DISABLE_WORLDCOIN);
+  const disableWC = process.env.NEXT_PUBLIC_DISABLE_WORLDCOIN === 'true';
+  const router = useRouter();
+
   const [isPending, setIsPending] = useState(false);
   const { isInstalled } = useMiniKit();
 
   const onClick = useCallback(async () => {
+    // If debug flag is on, drop into lobby
+    if (disableWC) {
+      console.log('[AuthButton] Debug mode – redirecting to /lobby');
+      router.push('/lobby');
+      return;
+    }
+
     if (!isInstalled || isPending) {
       return;
     }
+
     setIsPending(true);
     try {
       await walletAuth();
@@ -27,10 +41,17 @@ export const AuthButton = () => {
     }
 
     setIsPending(false);
-  }, [isInstalled, isPending]);
+  }, [disableWC, isInstalled, isPending, router]);
 
   useEffect(() => {
+    // Skip auto‐login when debug flag is on
+    if (disableWC) {
+      console.log('[AuthButton] Skipping auto‐authenticate because disableWC=true');
+      return;
+    }
+
     const authenticate = async () => {
+      console.log('[AuthButton] Calling walletAuth() on mount');
       if (isInstalled && !isPending) {
         setIsPending(true);
         try {
@@ -44,7 +65,7 @@ export const AuthButton = () => {
     };
 
     authenticate();
-  }, [isInstalled, isPending]);
+  }, [disableWC, isInstalled, isPending]);
 
   return (
     <LiveFeedback
