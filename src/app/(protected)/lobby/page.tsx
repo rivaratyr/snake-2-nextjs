@@ -1,4 +1,4 @@
-// src/app/(protected)/lobby/page.tsx
+// File: src/app/(protected)/lobby/page.tsx
 'use client';
 
 import {
@@ -36,7 +36,7 @@ export default function LobbyPage() {
   const [chatInput, setChatInput] = useState<string>('');
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
 
-  // Refs (not strictly needed but kept in case you want scroll locking, etc.)
+  // Refs in case you want to use them for scroll locking later
   const connectedUsersRef = useRef<string[]>(connectedUsers);
   const messagesRef = useRef<ChatMessage[]>(messages);
   const roomsRef = useRef<RoomInfo[]>(rooms);
@@ -50,24 +50,23 @@ export default function LobbyPage() {
     if (stored) {
       setUsername(stored);
       setHasJoined(true);
-      // Immediately inform server of our username
       socket.emit('lobby:setUsername', stored);
     }
   }, [socket]);
 
   // ——— Socket.IO event handlers ———
   useEffect(() => {
-    // 1) Receive updated user list
+    // 1) Updated user list
     socket.on('lobby:userList', (list: string[]) => {
       setConnectedUsers(list);
     });
 
-    // 2) Receive chat messages
+    // 2) New chat message
     socket.on('lobby:newMessage', (msg: ChatMessage) => {
       setMessages((prev) => [...prev, msg]);
     });
 
-    // 3) Receive updated room list
+    // 3) Updated room list
     socket.on('lobby:roomList', (roomList: RoomInfo[]) => {
       setRooms(roomList);
     });
@@ -77,7 +76,7 @@ export default function LobbyPage() {
       alert(errMsg);
     });
 
-    // 5) When a room is joined, navigate to the game page
+    // 5) Successful room join
     socket.on('lobby:roomJoined', ({ roomId }: { roomId: string }) => {
       router.push(`/game/${roomId}`);
     });
@@ -91,14 +90,12 @@ export default function LobbyPage() {
     };
   }, [router, socket]);
 
-  // ——— Handle “Join Lobby” (store username + emit) ———
+  // ——— Handle “Join Lobby” ———
   const handleJoin = (e: FormEvent) => {
     e.preventDefault();
     if (!username.trim()) return;
     const trimmed = username.trim();
-    // Save to localStorage
     localStorage.setItem('snakeLobbyUsername', trimmed);
-    // Tell server
     socket.emit('lobby:setUsername', trimmed);
     setHasJoined(true);
   };
@@ -117,17 +114,22 @@ export default function LobbyPage() {
     }
   };
 
-  // ——— Create & join rooms ———
+  // ——— Create & Join rooms ———
   const createRoom = () => {
     socket.emit('lobby:createRoom');
   };
 
   const joinRoom = (roomId: string) => {
     socket.emit('lobby:joinRoom', { roomId });
-    // Actual navigation happens via 'lobby:roomJoined'
+    // Navigation happens in 'lobby:roomJoined'
   };
 
-  // ——— If not joined (no username), show login form ———
+  // ——— Single-Player handler ———
+  const handleSinglePlayer = () => {
+    router.push('/game/single');
+  };
+
+  // ——— If not joined, show username form ———
   if (!hasJoined) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
@@ -156,12 +158,25 @@ export default function LobbyPage() {
     );
   }
 
-  // ——— Once joined, show three stacked cards: Users, Rooms, Chat ———
+  // ——— Once joined, show header with username + Single Player, then three cards ———
   return (
     <div className="min-h-screen bg-gray-100 p-4 space-y-4">
-      {/* Card #1: Connected Users */}
+      {/* —————————— HEADER: Username + Single Player —————————— */}
+      <div className="flex items-center justify-between bg-white rounded-lg shadow-md p-4">
+        <span className="text-lg font-medium">Hello, {username}</span>
+        <button
+          onClick={handleSinglePlayer}
+          className="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600 transition text-sm"
+        >
+          Single Player
+        </button>
+      </div>
+
+      {/* —————————— CARD #1: Connected Users —————————— */}
       <div className="bg-white rounded-lg shadow-md p-4">
-        <h2 className="text-lg font-semibold mb-2">Users ({connectedUsers.length})</h2>
+        <h2 className="text-lg font-semibold mb-2">
+          Users ({connectedUsers.length})
+        </h2>
         <ul className="space-y-1 max-h-36 overflow-y-auto">
           {connectedUsers.map((u, idx) => (
             <li key={idx} className="text-black">
@@ -174,10 +189,12 @@ export default function LobbyPage() {
         </ul>
       </div>
 
-      {/* Card #2: Rooms */}
+      {/* —————————— CARD #2: Rooms —————————— */}
       <div className="bg-white rounded-lg shadow-md p-4">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold">Rooms ({rooms.length})</h2>
+          <h2 className="text-lg font-semibold">
+            Rooms ({rooms.length})
+          </h2>
           <button
             onClick={createRoom}
             className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition text-sm"
@@ -215,7 +232,7 @@ export default function LobbyPage() {
         </ul>
       </div>
 
-      {/* Card #3: Chat */}
+      {/* —————————— CARD #3: Chat —————————— */}
       <div className="bg-white rounded-lg shadow-md p-4 flex flex-col">
         <h2 className="text-lg font-semibold mb-2">Chat</h2>
         <div
@@ -228,7 +245,9 @@ export default function LobbyPage() {
           {messages.map((m, idx) => (
             <div key={idx} className="mb-2">
               <div className="flex space-x-1">
-                <span className="font-semibold text-black">{m.username}:</span>
+                <span className="font-semibold text-black">
+                  {m.username}:
+                </span>
                 <span className="text-xs text-gray-600">
                   {new Date(m.timestamp).toLocaleTimeString()}
                 </span>
