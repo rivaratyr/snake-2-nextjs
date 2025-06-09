@@ -1,15 +1,20 @@
-// app/page.tsx
-//import { redirect } from 'next/navigation';
-import { Page } from '@/components/PageLayout';
+import { redirect } from 'next/navigation';
 import { AuthButton } from '../components/AuthButton';
 
 export default function Home() {
-  //redirect('/lobby');
+
+  if (process.env.USE_LOGIN) {
+    redirect('/lobby');
+  }
+
   return (
-    <Page>
-      <Page.Main className="flex flex-col items-center justify-center">
-        <AuthButton />
-      </Page.Main>
-    </Page>
+    <>
+    {process.env.NEXT_PUBLIC_ECOSYSTEM === 'world' && (
+      <AuthButton />
+    )}
+    {process.env.NEXT_PUBLIC_ECOSYSTEM === 'farcaster' && (
+      <></>
+    )}
+    </>
   );
 }

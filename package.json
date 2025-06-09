@@ -9,9 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@coinbase/onchainkit": "latest",
     "@worldcoin/mini-apps-ui-kit-react": "^1.0.2",
     "@worldcoin/minikit-js": "latest",
     "@worldcoin/minikit-react": "latest",
+    "@farcaster/frame-sdk": "^0.0.35",
+    "@next/third-parties": "^15.3.2",
+    "@upstash/redis": "^1.34.4",
     "clsx": "^2.1.1",
     "iconoir-react": "^7.11.0",
     "@types/socket.io": "^3.0.1",
@@ -20,7 +24,9 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "viem": "^2.27.2",
+    "wagmi": "^2.14.11"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
