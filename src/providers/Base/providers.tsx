@@ -16,6 +16,11 @@ export function FarcasterProvider(props: { children: ReactNode }) {
           name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME,
           logo: process.env.NEXT_PUBLIC_ICON_URL,
         },
+        wallet: { 
+          display: 'modal',
+          termsUrl: process.env.NEXT_PUBLIC_TERMS_URL, 
+          privacyUrl: process.env.NEXT_PUBLIC_PRIVACY_URL, 
+      },
       }}
     >
       {props.children}

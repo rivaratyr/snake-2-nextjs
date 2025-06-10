@@ -42,7 +42,7 @@ export default function ClientProviders({
           <MiniKitProvider>
             <SessionProvider session={session}>
               <Page>
-                <Page.Main className="flex flex-col items-center justify-center">
+                <Page.Main className="flex flex-col game-background items-center justify-center">
                   {children}
                 </Page.Main>
               </Page>
@@ -53,8 +53,8 @@ export default function ClientProviders({
       {process.env.NEXT_PUBLIC_ECOSYSTEM === 'farcaster' && (
         <FarcasterProvider>
           {/* <SessionProvider session={session}> */}
-            <div className="flex flex-col min-h-screen font-sans text-[var(--app-foreground)] mini-app-theme from-[var(--app-background)] to-[var(--app-gray)]">
-              <div className="w-full max-w-md mx-auto px-4 py-3">
+            <div className="flex flex-col min-h-screen mini-app-theme">
+              <div className="flex flex-col flex-1 w-full max-w-md mx-auto game-background px-4 py-3">
                 <Header />
                 {children}
               </div>

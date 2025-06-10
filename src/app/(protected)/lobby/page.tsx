@@ -130,12 +130,12 @@ export default function LobbyPage() {
   // ——— If not joined (no username), show login form ———
   if (!hasJoined) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-100">
+      <div className="flex flex-1 items-center justify-center">
         <form
           onSubmit={handleJoin}
-          className="bg-white p-6 rounded-lg shadow-lg w-11/12 max-w-sm"
+          className="panel p-6 rounded-lg shadow-lg w-11/12 max-w-sm space-y-4"
         >
-          <h2 className="text-2xl font-bold mb-4 text-center">
+          <h2 className="text-2xl font-bold text-center game-font-white">
             Enter Your Name
           </h2>
           <input
@@ -143,11 +143,11 @@ export default function LobbyPage() {
             placeholder="Username..."
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full text-lg input-basic"
           />
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition"
+            className="w-full button-rounded button-purple"
           >
             Join Lobby
           </button>
@@ -158,57 +158,57 @@ export default function LobbyPage() {
 
   // ——— Once joined, show three stacked cards: Users, Rooms, Chat ———
   return (
-    <div className="min-h-screen bg-gray-100 p-4 space-y-4">
+    <div className="flex flex-1 flex-col space-y-4">
       {/* Card #1: Connected Users */}
-      <div className="bg-white rounded-lg shadow-md p-4">
-        <h2 className="text-lg font-semibold mb-2">Users ({connectedUsers.length})</h2>
+      <div className="panel rounded-lg shadow-md p-4">
+        <h2 className="text-xl mb-2 game-font-white">Users ({connectedUsers.length})</h2>
         <ul className="space-y-1 max-h-36 overflow-y-auto">
           {connectedUsers.map((u, idx) => (
-            <li key={idx} className="text-black">
+            <li key={idx} className="text-xl game-font-yellow">
               {u}
             </li>
           ))}
           {connectedUsers.length === 0 && (
-            <li className="text-gray-500 italic">No users online.</li>
+            <li className="text-xl game-font-white text-gray-500 italic">No users online.</li>
           )}
         </ul>
       </div>
 
       {/* Card #2: Rooms */}
-      <div className="bg-white rounded-lg shadow-md p-4">
+      <div className="panel rounded-lg shadow-md p-4">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold">Rooms ({rooms.length})</h2>
+          <h2 className="text-xl game-font-white">Rooms ({rooms.length})</h2>
           <button
             onClick={createRoom}
-            className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition text-sm"
+            className="game-font-white text-xl"
           >
             + Create
           </button>
         </div>
         <ul className="space-y-2">
           {rooms.length === 0 && (
-            <li className="text-gray-500 italic">No rooms available.</li>
+            <li className="text-xl game-font-white text-gray-500 italic">No rooms available.</li>
           )}
           {rooms.map((r) => (
             <li
               key={r.roomId}
-              className="flex items-center justify-between bg-gray-50 p-2 rounded"
+              className="flex items-center justify-between p-2 rounded"
             >
               <div>
-                <span className="font-semibold text-black">{r.roomId}</span>
-                <span className="text-sm text-gray-600 ml-2">
+                <span className="text-xl game-font-yellow">{r.roomId}</span>
+                <span className="text-xl ml-2 game-font-white">
                   ({r.playersCount}/2)
                 </span>
               </div>
               {r.playersCount < 2 ? (
                 <button
                   onClick={() => joinRoom(r.roomId)}
-                  className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition text-sm"
+                  className="text-xl game-font-white px-3 py-1"
                 >
                   Join
                 </button>
               ) : (
-                <span className="text-gray-500 italic text-sm">Full</span>
+                <span className="game-font-white text-red italic text-xl">Full</span>
               )}
             </li>
           ))}
@@ -216,39 +216,40 @@ export default function LobbyPage() {
       </div>
 
       {/* Card #3: Chat */}
-      <div className="bg-white rounded-lg shadow-md p-4 flex flex-col">
-        <h2 className="text-lg font-semibold mb-2">Chat</h2>
+      <div className="panel rounded-lg shadow-md p-4 flex flex-col">
+        <h2 className="text-xl game-font-white font-semibold mb-2">Chat</h2>
         <div
-          className="flex-1 overflow-y-auto border border-gray-200 rounded p-2 mb-2 max-h-48"
+          className="flex-1 overflow-y-auto border border-gray-200 rounded mb-2 max-h-48"
           id="chat-window"
         >
           {messages.length === 0 && (
-            <p className="text-gray-500 italic">No messages yet.</p>
+            <p className="text-xl game-font-white text-gray-500 italic">No messages yet.</p>
           )}
           {messages.map((m, idx) => (
-            <div key={idx} className="mb-2">
-              <div className="flex space-x-1">
-                <span className="font-semibold text-black">{m.username}:</span>
-                <span className="text-xs text-gray-600">
+            <div key={idx} className="mb-2 flex flex-row space-x-1">
+              <div className="flex flex-row space-x-1">
+                <span className="text-xs font-semibold game-font-yellow">{m.username}</span>
+                <span className="text-xs">
                   {new Date(m.timestamp).toLocaleTimeString()}
                 </span>
               </div>
-              <p className="text-black">{m.text}</p>
+              <span className="text-xs">:</span>
+              <span className="text-xs">{m.text}</span>
             </div>
           ))}
         </div>
-        <div className="flex">
+        <div className="flex justify-between space-x-2">
           <input
             type="text"
             placeholder="Type a message..."
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
             onKeyDown={handleChatKeyDown}
-            className="flex-1 border border-gray-300 rounded-l px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="flex-1 input-basic text-xs"
           />
           <button
             onClick={sendMessage}
-            className="bg-blue-500 text-white px-4 py-2 rounded-r hover:bg-blue-600 transition"
+            className="game-font-white text-md"
           >
             Send
           </button>

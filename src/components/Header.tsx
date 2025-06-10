@@ -50,7 +50,7 @@ export function Header() {
             variant="ghost"
             size="sm"
             onClick={handleAddFrame}
-            className="text-[var(--app-accent)] p-4"
+            className="p-4"
             icon={<Icon name="plus" size="sm" />}
           >
             Save Frame
@@ -71,25 +71,24 @@ export function Header() {
     }, [context, frameAdded, handleAddFrame]);
 
   return (
-    <header className="flex justify-between items-center mb-3 h-11">
-      <div className="flex items-center space-x-2">
-        <Wallet className="z-10">
-          <ConnectWallet>
+    <header className="flex flex-col justify-between items-center space-y-2 mb-10">
+      <div className="w-full text-center text-3xl game-font-yellow">{process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME}</div>
+
+      <div className="w-full items-center">
+        <Wallet className="w-[90%] mx-auto">
+          <ConnectWallet className="text-xl w-full button-rounded button-purple">
             <Name className="text-inherit" />
           </ConnectWallet>
-          <WalletDropdown>
-            <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
+          <WalletDropdown className="panel w-full mt-10 mx-auto space-y-3">
+            <Identity hasCopyAddressOnClick>
               <Avatar />
-              <Name />
-              <Address />
-              <EthBalance />
+              <Name className="text-sm game-font-white" />
+              <EthBalance className="text-sm game-font-white" />
             </Identity>
-            <WalletDropdownDisconnect />
+            <WalletDropdownDisconnect className="text-sm text-white items-center w-full game-font-white button-rounded button-green" />
           </WalletDropdown>
         </Wallet>
       </div>
-      <div>{saveFrameButton}</div>
-      <div className="text-lg font-bold text-[var(--app-accent)]">{process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME}</div>
       
     </header>
   );

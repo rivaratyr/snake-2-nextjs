@@ -41,7 +41,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     
     <html lang="en">
-      <body className="bg-gray-100 text-gray-900">
+      <body className="game-font font-white">
         <ClientProviders session={session}>
         {children}
         </ClientProviders>

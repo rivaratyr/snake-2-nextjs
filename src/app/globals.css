@@ -5,13 +5,6 @@
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -19,8 +12,119 @@
   }
 }
 
+@font-face {
+  font-family: 'Supercell-Magic-Regular';
+  src: url('/fonts/Supercell-Magic-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-size: 16px;
+}
+
+.game-background {
+  background: url('/background.png') repeat-y center;
+  background-size: cover;
+}
+
+.game-font {
+  font-family: 'Supercell-Magic-Regular', Arial, Helvetica, sans-serif;
+}
+
+.game-font-yellow {
+  position: relative;
+  background: linear-gradient(to bottom, #FDDC03, #F8A300);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 1px #6A2E05; /* brown border */
+  /* Apply shadow beneath via drop-shadow filter */
+  filter: drop-shadow(0px 4px rgba(62, 33, 15, 1));
+}
+
+.game-font-white {
+  color: #ffffff;
+  font-weight: bold;
+  -webkit-text-stroke: 1px #000000; /* brown border */
+  filter: drop-shadow(0px 4px rgba(0, 0, 0, 1));
+}
+
+.button-rounded {
+  position: relative;
+  display: inline-block;
+  text-align: center;
+  padding: 20px 8px;
+  border-radius: 9999px; /* fully pill‑shaped */
+  border: none;
+  cursor: pointer;
+  overflow: hidden;
+  z-index: 0;
+  filter: drop-shadow(4.5px 3.7px 0 rgba(0, 0, 0, 0.25));
+}
+
+/* Soft ambient shadow behind the button */
+.button-rounded::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  filter: blur(12px) drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+  transform: translateY(4px);
+  z-index: -2;
+}
+
+/* Stronger defined shadow just beneath */
+.button-rounded::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.2);
+  filter: blur(4px);
+  transform: translateY(2px);
+  z-index: -1;
+}
+
+.button-purple {
+  background:
+    /* Top layer: Figma gradient, full width */
+    linear-gradient(
+      to left,
+      rgba(177, 100, 241, 0) 0%,
+      rgba(233, 97, 255, 1) 100%
+    ),
+    /* Bottom layer: solid purple */
+    #7852F6;
+
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-blend-mode: normal; /* default */
+}
+
+.button-green {
+  background: linear-gradient(to bottom, #07A874, #22BBDD);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-blend-mode: normal; /* default */
+}
+
+.panel {
+  border: 3px solid #1C56C3;
+  border-radius: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  margin-bottom: 16px;
+}
+
+.panel div {
+  border: 0;
+}
+
+.input-basic {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 2px white;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--foreground);
 }
