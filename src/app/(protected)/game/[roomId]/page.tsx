@@ -7,6 +7,8 @@ import { Button } from '@worldcoin/mini-apps-ui-kit-react';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getSocket } from '@/utils/socket';
+import { GameBoard } from '@/components/GameBoard';
+
 
 type Direction = 'up' | 'down' | 'left' | 'right';
 
@@ -32,6 +34,10 @@ interface Particle {
   alpha: number;
   size: number;
 }
+const [hasMounted, setHasMounted] = useState(false);
+useEffect(() => {
+  setHasMounted(true);
+}, []);
 
 export default function GamePage() {
   const { roomId } = useParams() as { roomId: string };
@@ -384,20 +390,9 @@ export default function GamePage() {
       {/* Outer container with gradient border & shadow */}
       <div className="relative border-4 border-gradient-to-r from-green-400 to-blue-600 rounded-xl shadow-xl">
         {/* Main game canvas */}
-        <canvas
-          ref={mainCanvasRef}
-          width={GRID_COLS * cellSize}
-          height={GRID_ROWS * cellSize}
-          className="rounded-lg bg-white"
-        />
-
-        {/* Particle overlay canvas (absolute on top) */}
-        <canvas
-          ref={particleCanvasRef}
-          width={GRID_COLS * cellSize}
-          height={GRID_ROWS * cellSize}
-          className="absolute top-0 left-0 pointer-events-none"
-        />
+        <div className="flex justify-center items-center mt-4">
+          <GameBoard snakes={Object.values(snakes)} food={food} gridSize={GRID_ROWS} />
+        </div>
       </div>
 
       {/* Countdown / Status */}
