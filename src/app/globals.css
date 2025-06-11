@@ -47,8 +47,27 @@ body {
 .game-font-white {
   color: #ffffff;
   font-weight: bold;
-  -webkit-text-stroke: 1px #000000; /* brown border */
+  -webkit-text-stroke: 1px #000000;
+  paint-order: stroke fill;
   filter: drop-shadow(0px 4px rgba(0, 0, 0, 1));
+}
+
+button {
+  filter: drop-shadow(4.5px 3.7px 0 rgba(0, 0, 0, 0.25));
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-blend-mode: normal; /* default */
+  text-shadow:
+     -1px -1px 0 #000,
+      0   -1px 0 #000,
+      1px -1px 0 #000,
+      1px  0   0 #000,
+      1px  1px 0 #000,
+      0    1px 0 #000,
+     -1px  1px 0 #000,
+     -1px  0   0 #000,
+     /* actual drop-shadow */
+     0px 4px 0px rgba(0, 0, 0, 1);
 }
 
 .button-rounded {
@@ -61,7 +80,6 @@ body {
   cursor: pointer;
   overflow: hidden;
   z-index: 0;
-  filter: drop-shadow(4.5px 3.7px 0 rgba(0, 0, 0, 0.25));
 }
 
 /* Soft ambient shadow behind the button */
@@ -95,17 +113,27 @@ body {
     ),
     /* Bottom layer: solid purple */
     #7852F6;
-
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-blend-mode: normal; /* default */
 }
 
 .button-green {
   background: linear-gradient(to bottom, #07A874, #22BBDD);
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-blend-mode: normal; /* default */
+}
+
+.button-grey {
+  background: linear-gradient(to bottom, #A0A0A0, #C0C0C0);
+  color: #7d7d7d;
+}
+
+.button-blue {
+  background: linear-gradient(135deg, #196BD8, #549FFF);
+}
+
+.button-yellow {
+  background: linear-gradient(115deg, #FDDC03, #F8A300);
+}
+
+.button-teal {
+  background: linear-gradient(to bottom, #07A874, #22BBDD);
 }
 
 .panel {
@@ -120,6 +148,15 @@ body {
   border: 0;
 }
 
+.panel-blue {
+  background: linear-gradient(to bottom, #196BD8, #549FFF);
+}
+
+.bar-yellow {
+  background: linear-gradient(to bottom, #F3D110, #F1C109, #E17000);
+  border-radius: 50px 0 0 50px;
+}
+
 .input-basic {
   width: 100%;
   padding: 12px;
@@ -127,4 +164,11 @@ body {
   border: 2px white;
   background: rgba(255, 255, 255, 0.1);
   color: var(--foreground);
+}
+
+.statusbar-dark {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.5));
+  box-shadow: inset 0px 4px 4px rgba(0, 0, 0, 0.25);
+  border: 1px solid #4071CD;
+  border-top: 0;
 }

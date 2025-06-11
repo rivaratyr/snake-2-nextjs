@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
 // import { Navigation } from '@/components/Navigation';
-import { Page } from '@/components/PageLayout';
+// import { Page } from '@/components/PageLayout';
 
 export default async function TabsLayout({
   children,

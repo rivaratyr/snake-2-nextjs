@@ -4,7 +4,7 @@ import { AuthButton } from '../components/AuthButton';
 export default function Home() {
 
   if (process.env.USE_LOGIN) {
-    redirect('/lobby');
+    redirect('/home');
   }
 
   return (

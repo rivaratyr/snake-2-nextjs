@@ -6,7 +6,6 @@ import { SessionProvider } from 'next-auth/react';
 import dynamic from 'next/dynamic';
 import type { ReactNode } from 'react';
 import { Page } from '@/components/PageLayout';
-import { Header } from '@/components/Header';
 
 const ErudaProvider = dynamic(
   () => import('@/providers/Eruda').then((c) => c.ErudaProvider),
@@ -41,10 +40,8 @@ export default function ClientProviders({
         <ErudaProvider>
           <MiniKitProvider>
             <SessionProvider session={session}>
-              <Page>
-                <Page.Main className="flex flex-col game-background items-center justify-center">
-                  {children}
-                </Page.Main>
+              <Page className="flex flex-col game-background items-center justify-center">
+                {children}
               </Page>
             </SessionProvider>
           </MiniKitProvider>
@@ -55,7 +52,6 @@ export default function ClientProviders({
           {/* <SessionProvider session={session}> */}
             <div className="flex flex-col min-h-screen mini-app-theme">
               <div className="flex flex-col flex-1 w-full max-w-md mx-auto game-background px-4 py-3">
-                <Header />
                 {children}
               </div>
             </div>

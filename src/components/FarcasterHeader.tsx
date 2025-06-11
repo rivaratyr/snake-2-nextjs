@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, 
+  // useState, useCallback 
+} from "react";
 import { sdk } from '@farcaster/frame-sdk'
-import { Button } from "./Button";
-import { Icon } from "./Icon";
+// import { Button } from "./Button";
+// import { Icon } from "./Icon";
 import {
   useMiniKit,
-  useAddFrame,
+  // useAddFrame,
 } from "@coinbase/onchainkit/minikit";
 import {
   Name,
   Identity,
-  Address,
+  //Address,
   Avatar,
   EthBalance,
 } from "@coinbase/onchainkit/identity";
@@ -22,11 +24,15 @@ import {
   WalletDropdownDisconnect,
 } from "@coinbase/onchainkit/wallet";
 
-export function Header() {
-  const { setFrameReady, isFrameReady, context } = useMiniKit();
-  const [frameAdded, setFrameAdded] = useState(false);
+export function FarcasterHeader() {
+  const { 
+    setFrameReady, 
+    isFrameReady, 
+    // context 
+  } = useMiniKit();
+  /* const [frameAdded, setFrameAdded] = useState(false);
 
-  const addFrame = useAddFrame();
+  const addFrame = useAddFrame(); */
   
   useEffect(() => {
     if (!isFrameReady) {
@@ -38,12 +44,12 @@ export function Header() {
     }
   }, [setFrameReady, isFrameReady]);
 
-  const handleAddFrame = useCallback(async () => {
-      const frameAdded = await addFrame();
-      setFrameAdded(Boolean(frameAdded));
-    }, [addFrame]);
+  /* const handleAddFrame = useCallback(async () => {
+    const frameAdded = await addFrame();
+    setFrameAdded(Boolean(frameAdded));
+  }, [addFrame]); */
   
-    const saveFrameButton = useMemo(() => {
+    /* const saveFrameButton = useMemo(() => {
       if (context && !context.client.added) {
         return (
           <Button
@@ -68,7 +74,7 @@ export function Header() {
       }
   
       return null;
-    }, [context, frameAdded, handleAddFrame]);
+    }, [context, frameAdded, handleAddFrame]); */
 
   return (
     <header className="flex flex-col justify-between items-center space-y-2 mb-10">
@@ -76,7 +82,7 @@ export function Header() {
 
       <div className="w-full items-center">
         <Wallet className="w-[90%] mx-auto">
-          <ConnectWallet className="text-xl w-full button-rounded button-purple">
+          <ConnectWallet className="text-xl w-full button-rounded button-purple game-font-white">
             <Name className="text-inherit" />
           </ConnectWallet>
           <WalletDropdown className="panel w-full mt-10 mx-auto space-y-3">
