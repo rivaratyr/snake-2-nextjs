@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   SnakeState,
   Cell,
@@ -25,7 +24,7 @@ function createInitialSnake(): SnakeState {
 export default function SinglePlayerGame() {
   const [snake, setSnake] = useState<SnakeState>(createInitialSnake);
   const [food, setFood] = useState<Cell>(generateFood(gridSize, createInitialSnake()));
-  const [tickInterval, setTickInterval] = useState<NodeJS.Timeout | null>(null);
+  //const [tickInterval, setTickInterval] = useState<NodeJS.Timeout | null>(null);
   const [particles, setParticles] = useState<{ x: number; y: number; id: number }[]>([]);
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   const particleCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -188,7 +187,8 @@ export default function SinglePlayerGame() {
         return moved;
       });
     }, 200);
-    setTickInterval(interval);
+    
+      //setTickInterval(interval);
       return () => clearInterval(interval);
     }, [food]);
 

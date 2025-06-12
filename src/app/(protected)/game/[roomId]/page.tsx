@@ -9,7 +9,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { getSocket } from '@/utils/socket';
 import { GameBoard } from '@/components/GameBoard';
 
-
 type Direction = 'up' | 'down' | 'left' | 'right';
 
 interface Cell { x: number; y: number; }
@@ -34,10 +33,6 @@ interface Particle {
   alpha: number;
   size: number;
 }
-const [hasMounted, setHasMounted] = useState(false);
-useEffect(() => {
-  setHasMounted(true);
-}, []);
 
 export default function GamePage() {
   const { roomId } = useParams() as { roomId: string };
@@ -53,6 +48,8 @@ export default function GamePage() {
   const [showStartModal, setShowStartModal] = useState(false);
   // Track if this player has pressed ready
   const [hasPressedReady, setHasPressedReady] = useState(false);
+
+  //const [hasMounted, setHasMounted] = useState(false);
 
   // Canvas sizing
   const GRID_ROWS = 20;
@@ -94,6 +91,10 @@ export default function GamePage() {
       window.removeEventListener('resize', updateCellSize);
     };
   }, []);
+
+  /* useEffect(() => {
+    setHasMounted(true);
+  }, []); */
 
   // --- Particle animation loop ---
   const animateParticles = useCallback(() => {
