@@ -57,15 +57,22 @@ function placeFood(game: GameData) {
   game.food = { x: fx, y: fy };
 }
 
+import { Server as HTTPServer } from 'http';
+
+type WithIO = {
+  server: HTTPServer & { io?: Server };
+};
+
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   // Only create one Socket.IO server instance
-  if (!(res.socket as any).server.io) {
+  const socketServer = res.socket as typeof res.socket & WithIO;
+  if (!socketServer.server.io) {
     console.log('⌛️ Initializing Socket.IO server…');
     if (!res.socket) {
       res.status(500).send('Socket is not available.');
       return;
     }
-    const httpServer: any = (res.socket as any).server;
+    const httpServer: HTTPServer = socketServer.server;
     const io = new Server(httpServer, {
       path: '/api/socket_io',
       cors: {
@@ -73,7 +80,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         methods: ['GET', 'POST'],
       },
     });
-    (res.socket as any).server.io = io;
+    socketServer.server.io = io;
 
     io.on('connection', (socket) => {
       console.log(`⚡️ Socket connected: ${socket.id}`);
@@ -302,7 +309,10 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
               if (!currentGame || currentGame.status !== 'playing') return;
 
               // Move each snake one step
-              Object.entries(currentGame.snakes).forEach(([pid, snake]) => {
+              Object.entries(currentGame.snakes).forEach(([pid, snake]: [string, SnakeState]) => {
+          
+                console.log(`🐍 Moving snake ${pid} in direction ${snake.direction}`);
+
                 if (!snake.alive) return;
                 const head = { ...snake.body[0] };
                 switch (snake.direction) {

@@ -7,7 +7,8 @@ interface GameBoardProps {
   snakes: SnakeState[];
   food: Cell;
   gridSize: number;
-  particles?: { x: number; y: number; id: number }[];
+  particles?: { x: number; y: number; id: number; angle: number }[];
+  cellSize?: number;
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({
