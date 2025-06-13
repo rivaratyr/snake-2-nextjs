@@ -1,0 +1,185 @@
+/* DPad.css */
+
+/* ---------- Container ---------- */
+.cross-container {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: linear-gradient(
+    to bottom,
+    #d6d3d1 0%,
+    #eae8e4 50%,
+    #f2f1ed 100%
+  );
+  /* center on page for demo */
+  margin: 50px auto;
+}
+
+/* ---------- Spikes (top/right/bottom/left) ---------- */
+.cross-container > .spike {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+/* Top spike */
+.cross-container > .spike:nth-of-type(1) {
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 10px solid #fffdf8;
+}
+
+/* Right spike */
+.cross-container > .spike:nth-of-type(2) {
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 10px solid #fffdf8;
+}
+
+/* Bottom spike */
+.cross-container > .spike:nth-of-type(3) {
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%) rotate(180deg);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 10px solid #fffdf8;
+}
+
+/* Left spike */
+.cross-container > .spike:nth-of-type(4) {
+  top: 50%;
+  left: 4px;
+  transform: translateY(-50%) rotate(0deg) rotateY(180deg);
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 10px solid #fffdf8;
+}
+
+/* ---------- The Cross ---------- */
+.cross {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120px;
+  height: 120px;
+  transform: translate(-50%, -50%);
+  font-size: 0; /* collapse any whitespace */
+}
+
+/* Vertical bar group */
+.top-down {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: space-between;
+}
+
+/* Horizontal bar group */
+.left-right {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+}
+
+/* Base styles for each button slice */
+.button-top,
+.button-bottom,
+.button-left,
+.button-right {
+  position: relative;
+  background: #1d1d1d;
+  cursor: pointer;
+}
+
+/* Up / down halves */
+.button-top,
+.button-bottom {
+  width: 40%;
+  height: 50%;
+}
+.button-bottom {
+  background: #111;
+}
+
+/* Left / right halves */
+.button-left,
+.button-right {
+  width: 50%;
+  height: 100%;
+}
+.button-right {
+  background: #111;
+}
+
+/* ---------- Stripes inside buttons ---------- */
+/* shared stripe defaults */
+.button-stripe {
+  position: absolute;
+  background: #555;
+  border-radius: 2px;
+}
+
+/* Top button stripes */
+.button-top .button-stripe {
+  width: 80%;
+  height: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.button-top .button-stripe:nth-child(1) { top: 10px; }
+.button-top .button-stripe:nth-child(2) { top: calc(50% - 2px); }
+.button-top .button-stripe:nth-child(3) { bottom: 10px; }
+
+/* Bottom button stripes */
+.button-bottom .button-stripe {
+  width: 80%;
+  height: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.button-bottom .button-stripe:nth-child(1) { bottom: 10px; }
+.button-bottom .button-stripe:nth-child(2) { bottom: calc(50% - 2px); }
+.button-bottom .button-stripe:nth-child(3) { top: 10px; }
+
+/* Left button stripes */
+.button-left .button-stripe {
+  width: 4px;
+  height: 80%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.button-left .button-stripe:nth-child(1) { left: 10px; }
+.button-left .button-stripe:nth-child(2) { left: calc(50% - 2px); }
+.button-left .button-stripe:nth-child(3) { right: 10px; }
+
+/* Right button stripes */
+.button-right .button-stripe {
+  width: 4px;
+  height: 80%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.button-right .button-stripe:nth-child(1) { right: 10px; }
+.button-right .button-stripe:nth-child(2) { left: calc(50% - 2px); }
+.button-right .button-stripe:nth-child(3) { left: 10px; }
+
+/* ---------- Center bump ---------- */
+.cross-middle-bumb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  background: #1d1d1d;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}

@@ -2,14 +2,9 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  SnakeState,
-  Cell,
-  Direction,
-  moveSnake,
-  generateFood,
-} from '@/lib/game-core';
+import { SnakeState, Cell, Direction, moveSnake, generateFood } from '@/lib/game-core';
 import { GameBoard } from '@/components/GameBoard';
+import { DPad } from '@/components/DPad/DPad';
 
 const gridSize = 20;
 
@@ -31,6 +26,8 @@ export default function SinglePlayerGame() {
   const particleCanvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
   const animationRef = useRef<number | null>(null);
+  const lastDirectionRef = useRef<Direction>('right');
+
 
   const [aiSnake, setAiSnake] = useState<SnakeState>({
     body: [{ x: 0, y: 0 }],
@@ -39,6 +36,24 @@ export default function SinglePlayerGame() {
     score: 0,
   });
 
+  const changeDirection = (newDir: Direction) => {
+    const opposite: Record<Direction, Direction> = {
+      up: 'down',
+      down: 'up',
+      left: 'right',
+      right: 'left',
+    };
+
+    if (
+      lastDirectionRef.current &&
+      opposite[lastDirectionRef.current] === newDir
+    ) {
+      return;
+    }
+
+    lastDirectionRef.current = newDir;
+    setSnake((prev) => ({ ...prev, direction: newDir }));
+  };
   interface Particle {
   x: number;
   y: number;
@@ -167,7 +182,7 @@ export default function SinglePlayerGame() {
 
   triggerParticles(moved.body[0]);
   return moved;
-});
+  });
 
       // AI snake
       setAiSnake((prev) => {
@@ -199,6 +214,18 @@ export default function SinglePlayerGame() {
     }, 500); // animation duration
     return () => clearTimeout(timeout);
   }, [particles]);
+
+  useEffect(() => {
+    const canvas = mainCanvasRef.current;
+    const particleCanvas = particleCanvasRef.current;
+    if (canvas && particleCanvas) {
+      const size = gridSize * 20; // match your cell size
+      canvas.width = size;
+      canvas.height = size;
+      particleCanvas.width = size;
+      particleCanvas.height = size;
+    }
+  }, []);
 
   return (
     <div className="relative p-4 text-white min-h-screen flex flex-col items-center">
@@ -235,11 +262,13 @@ export default function SinglePlayerGame() {
             ref={particleCanvasRef}
             className="absolute top-0 left-0 z-20"
           />
+          
           <GameBoard
             snakes={[snake, aiSnake]}
             food={food}
             gridSize={gridSize}
           />
+          <DPad onDirection={changeDirection} />
         </div>
       </div>
     </div>

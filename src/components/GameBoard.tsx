@@ -15,7 +15,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   food,
   gridSize,
   particles,
-  cellSize = 20
+  cellSize = 20, // Default cell size
 }) => {
   const boardStyle = {
     display: 'grid',
