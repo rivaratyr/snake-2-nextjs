@@ -36,7 +36,7 @@ export const walletAuth = async () => {
     console.log(result.finalPayload);
   }
 
-  await signIn('credentials', {
+  await signIn('world-app', {
     redirectTo: '/home',
     nonce,
     signedNonce,

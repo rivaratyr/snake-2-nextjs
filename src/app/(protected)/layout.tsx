@@ -1,4 +1,5 @@
 import { auth } from '@/auth';
+import { redirect } from 'next/navigation';
 // import { Navigation } from '@/components/Navigation';
 // import { Page } from '@/components/PageLayout';
 
@@ -9,18 +10,16 @@ export default async function TabsLayout({
 }) {
   const session = await auth();
 
-  // If the user is not authenticated, redirect to the login page
+  // If the user is not authenticated, no answer is returned.
   if (!session) {
+    console.log(session);
     console.log('Not authenticated');
-    // redirect('/');
+    return (<></>);
   }
 
   return (
     <>
       {children}
-      {/* <Page.Footer className="px-0 fixed bottom-0 w-full bg-white">
-        <Navigation />
-      </Page.Footer> */}
     </>
   );
 }

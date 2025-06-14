@@ -49,13 +49,13 @@ export default function ClientProviders({
       )}
       {process.env.NEXT_PUBLIC_ECOSYSTEM === 'farcaster' && (
         <FarcasterProvider>
-          {/* <SessionProvider session={session}> */}
+          <SessionProvider session={session}>
             <div className="flex flex-col min-h-screen mini-app-theme">
               <div className="flex flex-col flex-1 w-full max-w-md mx-auto game-background px-4 py-3">
                 {children}
               </div>
             </div>
-          {/* </SessionProvider> */}
+          </SessionProvider>
         </FarcasterProvider>
       )}
     </>

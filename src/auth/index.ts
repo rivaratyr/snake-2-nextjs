@@ -27,10 +27,11 @@ declare module 'next-auth' {
 // For more information on each option (and a full list of options) go to
 // https://authjs.dev/getting-started/authentication/credentials
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.AUTH_SECRET,
   session: { strategy: 'jwt' },
   providers: [
     Credentials({
+      id: 'world-app',
       name: 'World App Wallet',
       credentials: {
         nonce: { label: 'Nonce', type: 'text' },
@@ -71,6 +72,65 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         };
       },
     }),
+    Credentials({
+      id: 'coinbase',
+      name: 'Coinbase Wallet',
+      credentials: { 
+        address: { label: 'Wallet Address', type: 'text' },
+        ensName: { label: 'ENS Name', type: 'text' },
+        ensAvatar: { label: 'ENS Avatar', type: 'text' },
+      },
+      authorize: async (credentials) => {
+        console.log('Coinbase Wallet credentials:', credentials);
+        
+        const { address, ensName, ensAvatar } = credentials as Partial<Record<"address" | "ensName" | "ensAvatar", string>>;
+
+        if (!address) {
+          console.error('No address found in Coinbase Wallet');
+          return null;
+        }
+
+        return {
+          id: address,
+          walletAddress: address,
+          username: ensName || address,
+          profilePictureUrl: ensAvatar || `https://api.adorable.io/avatars/285/${address}.png`,
+        };
+      }
+    })
+    /* Credentials({
+      id: "farcaster",
+      name: "Farcaster Quick Auth",
+      credentials: {
+        token: { label: "Farcaster Quick-Auth Token", type: "text" },
+      },
+      authorize: async () => {
+        try {
+          const { token } = await sdk.quickAuth.getToken();
+
+          if (!token) {
+            console.error("No token returned from getToken()");
+            return null;
+          }
+
+          const fid = typeof token.sub === "number" ? token.sub : Number(token.sub);
+          
+          const primaryAddress = await sdk.quickAuth.fetch("https://api.farcaster.xyz/fc/primary-address?fid=" + fid)
+            .then((r) => r.json())
+            .then((d) => d.result.address.address);
+
+          return {
+            id: primaryAddress,
+            profilePictureUrl: `https://api.farcaster.xyz/fc/profile-picture?fid=${fid}`,
+            username: String(fid),
+            walletAddress: primaryAddress,
+          };
+        } catch (err) {
+          console.error("⚠️ Farcaster login failed", err);
+          return null;
+        }
+      },
+    }), */
   ],
   callbacks: {
     async jwt({ token, user }) {
